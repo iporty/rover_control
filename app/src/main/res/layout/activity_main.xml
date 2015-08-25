@@ -1,4 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
     android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
@@ -54,6 +55,21 @@
                 android:text="Disconnect"
                 android:id="@+id/disconnect"
                 android:layout_below="@+id/connect" />
+
+            <com.stuff.porteous.rover_control.MjpegView
+                android:background="#ccc"
+                android:layout_width="300dp"
+                android:layout_height="300dp"
+                android:paddingLeft="20dp"
+                android:paddingBottom="40dp"
+                android:layout_centerVertical="true"
+                android:layout_centerHorizontal="true"
+                android:id="@+id/mjpeg_view"
+                app:exampleDimension="24sp"
+                app:exampleColor="#33b5e5"
+                app:exampleString="Hello, MjpegView"
+                app:exampleDrawable="@android:drawable/ic_menu_add" />
+
         </RelativeLayout>
     </FrameLayout>
 
