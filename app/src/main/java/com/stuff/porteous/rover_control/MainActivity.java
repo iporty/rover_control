@@ -20,6 +20,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -42,6 +44,9 @@ public class MainActivity extends ActionBarActivity {
     private Button connect_button_;
     private SharedPreferences settings_;
     private UDPConnection udp_connection_;
+    private MjpegView mjpeg_view_;
+    private InputStream input_stream_;
+    private MjpegInputStream mjpeg_input_stream_;
 
     static final private int CONNECT = 0;
     static final private int SEND_SETTING = 1;
@@ -103,6 +108,7 @@ public class MainActivity extends ActionBarActivity {
         throttle_bar_ = (SeekBar) findViewById(R.id.throttle);
         steering_bar_ = (SeekBar) findViewById(R.id.steering);
         settings_text_ = (TextView) findViewById(R.id.settingsView);
+        mjpeg_view_ = (MjpegView) findViewById(R.id.mjpeg_view);
 
         connect_button_ = (Button) findViewById(R.id.connect);
         connect_button_.setOnClickListener(new View.OnClickListener() {
@@ -125,6 +131,10 @@ public class MainActivity extends ActionBarActivity {
 
         private void ConnectOp() {
             String address = settings_.getString(SettingsActivity.rover_address_key, "");
+
+            mjpeg_input_stream_ = MjpegInputStream.read(address);
+            mjpeg_view_.setSource(mjpeg_input_stream_);
+
             int port = settings_.getInt(SettingsActivity.rover_port_key, 0);
             udp_connection_.Connect(address, port);
 
@@ -137,6 +147,13 @@ public class MainActivity extends ActionBarActivity {
             toast.show();
         }
 
+        private void DisconnectOp() {
+            udp_connection_.Disconnect();
+            udp_connection_.connected_ = false;
+
+            mjpeg_view_.startPlayback();
+        }
+
         @Override
         public void handleMessage(Message msg) {
             count_++;
@@ -145,8 +162,7 @@ public class MainActivity extends ActionBarActivity {
                     ConnectOp();
                     break;
                 case DISCONNECT:
-                    udp_connection_.Disconnect();
-                    udp_connection_.connected_ = false;
+                    DisconnectOp();
                     break;
                 case SEND_SETTING:
                     if (udp_connection_.isConnected()) {
