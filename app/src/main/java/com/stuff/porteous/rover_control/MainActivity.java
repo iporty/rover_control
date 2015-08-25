@@ -150,10 +150,12 @@ public class MainActivity extends ActionBarActivity {
                     break;
                 case SEND_SETTING:
                     if (udp_connection_.isConnected()) {
-
+                        Log.e("sending port", Integer.toString(msg.arg1));
+                        Log.e("sending setting", Integer.toString(msg.arg2));
                         ByteBuffer bb = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
                         bb.putInt(msg.arg1);
                         bb.putInt(msg.arg2);
+
                         DatagramPacket datagram = new DatagramPacket(bb.array(), 8);
 
                         try {

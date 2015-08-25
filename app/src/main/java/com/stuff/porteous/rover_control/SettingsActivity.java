@@ -42,7 +42,7 @@ public class SettingsActivity extends ActionBarActivity {
     protected  void onPause() {
         SharedPreferences.Editor editor = settings_.edit();
         editor.putString(rover_address_key, address_text_.getText().toString());
-        editor.putInt(rover_port_key, rover_port_);
+        editor.putInt(rover_port_key, Integer.parseInt(port_text_.getText().toString()));
         editor.commit();
         super.onPause();
     }
