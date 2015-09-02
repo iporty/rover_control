@@ -5,8 +5,12 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import org.apache.http.HttpResponse;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Properties;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -24,13 +28,31 @@ public class MjpegInputStream extends DataInputStream {
     private final static int HEADER_MAX_LENGTH = 100;
     private final static int FRAME_MAX_LENGTH = 40000 + HEADER_MAX_LENGTH;
     private int mContentLength = -1;
+    private byte[] frameData_;
+    private int frameDataSize_ = 0;
+    private byte[] header_;
+    private int headerLen_ = 0;
+    private BitmapFactory.Options bm_options_ = null;
+    private byte[] temp_storage_ = null;
+    private final static int DECODE_TEMP_STORAGE_SIZE = 10000000;
+    private Bitmap bitmap_ = null;
+    private int avg_count_ = 0;
+    private double avg_ = 0;
 
-    public static MjpegInputStream read(String url) {
-        HttpResponse res;
-        DefaultHttpClient httpclient = new DefaultHttpClient();
+    public static MjpegInputStream read(String url_address) {
+        InputStream res;
+        URL url = null;
         try {
-            res = httpclient.execute(new HttpGet(URI.create(url)));
-            return new MjpegInputStream(res.getEntity().getContent());
+            url = new URL(url_address);
+
+        } catch(Exception e) {
+            Log.e("MjpegInputStream", e.toString());
+        }
+        try {
+            HttpURLConnection httpclient = (HttpURLConnection) url.openConnection();
+
+            //res = httpclient.getInputStream();
+            return new MjpegInputStream(httpclient.getInputStream());
         } catch (ClientProtocolException e) {
             Log.e("Client Protocol Exception", e.toString());
         } catch (IOException e) {
@@ -41,23 +63,36 @@ public class MjpegInputStream extends DataInputStream {
 
     }
 
-    public MjpegInputStream(InputStream in) { super(new BufferedInputStream(in, FRAME_MAX_LENGTH)); }
+    public MjpegInputStream(InputStream in) {
 
-    private int getEndOfSeqeunce(DataInputStream in, byte[] sequence) throws IOException {
+        super(new BufferedInputStream(in, FRAME_MAX_LENGTH));
+        header_ = new byte[HEADER_MAX_LENGTH];
+        bm_options_ = new BitmapFactory.Options();
+        temp_storage_ = new byte[DECODE_TEMP_STORAGE_SIZE];
+        bm_options_.inTempStorage = temp_storage_;
+    }
+
+    private int getEndOfSeqeunce(DataInputStream in, byte[] sequence, int max_length, byte[] header) throws IOException {
         int seqIndex = 0;
         byte c;
-        for(int i=0; i < FRAME_MAX_LENGTH; i++) {
-            c = (byte) in.readUnsignedByte();
-            if(c == sequence[seqIndex]) {
-                seqIndex++;
-                if(seqIndex == sequence.length) return i + 1;
-            } else seqIndex = 0;
+        try {
+            for (int i = 0; i < max_length; i++) {
+                c = (byte) in.readUnsignedByte();
+                header[i] = c;
+                if (c == sequence[seqIndex]) {
+                    seqIndex++;
+                    if (seqIndex == sequence.length) return i + 1;
+                } else seqIndex = 0;
+            }
+            return -1;
+        } catch (Exception e) {
+            Log.e("getEndOfSequence", e.toString());
+            return -1;
         }
-        return -1;
     }
 
     private int getStartOfSequence(DataInputStream in, byte[] sequence) throws IOException {
-        int end = getEndOfSeqeunce(in, sequence);
+        int end = getEndOfSeqeunce(in, sequence, HEADER_MAX_LENGTH, header_);
         return (end < 0) ? (-1) : (end - sequence.length);
     }
 
@@ -69,20 +104,42 @@ public class MjpegInputStream extends DataInputStream {
     }
 
     public Bitmap readMjpegFrame() throws IOException {
+        long start_time = System.nanoTime();
         mark(FRAME_MAX_LENGTH);
         int headerLen = getStartOfSequence(this, SOI_MARKER);
         reset();
-        byte[] header = new byte[headerLen];
-        readFully(header);
+        readFully(header_, 0, headerLen);
         try {
-            mContentLength = parseContentLength(header);
+            mContentLength = parseContentLength(header_);
         } catch (NumberFormatException nfe) {
-            mContentLength = getEndOfSeqeunce(this, EOF_MARKER);
+            mContentLength = getEndOfSeqeunce(this, EOF_MARKER, FRAME_MAX_LENGTH, frameData_);
         }
         reset();
-        byte[] frameData = new byte[mContentLength];
+        if (frameDataSize_ < mContentLength) {
+            frameData_ = new byte[mContentLength];
+            frameDataSize_ = mContentLength;
+        }
+        //frameData_ = new byte[mContentLength];
         skipBytes(headerLen);
-        readFully(frameData);
-        return BitmapFactory.decodeStream(new ByteArrayInputStream(frameData));
+        readFully(frameData_, 0, mContentLength);
+        //return BitmapFactory.decodeStream(new ByteArrayInputStream(frameData_));
+        bm_options_.inBitmap = bitmap_;
+        bitmap_ = BitmapFactory.decodeByteArray(frameData_, 0, mContentLength);
+
+        long end_time = System.nanoTime();
+        long duration = end_time - start_time;
+        if (avg_count_ == 10) {
+            Log.d("readMjpegTime", "****************" + String.valueOf(avg_ / 1E9));
+            avg_count_ = 0;
+            avg_ = 0;
+        } else {
+            avg_ = avg_ * avg_count_;
+            avg_ = avg_ + duration;
+            avg_count_ = avg_count_ + 1;
+            avg_ = avg_ / avg_count_;
+        }
+        return bitmap_;
+
+        //return BitmapFactory.decodeByteArray(frameData_, 0, mContentLength);
     }
 }

@@ -132,7 +132,7 @@ public class MainActivity extends ActionBarActivity {
         private void ConnectOp() {
             String address = settings_.getString(SettingsActivity.rover_address_key, "");
 
-            mjpeg_input_stream_ = MjpegInputStream.read(address);
+            mjpeg_input_stream_ = MjpegInputStream.read("http://" + address + ":8080/stream/video.mjpeg");
             mjpeg_view_.setSource(mjpeg_input_stream_);
 
             int port = settings_.getInt(SettingsActivity.rover_port_key, 0);
@@ -148,10 +148,10 @@ public class MainActivity extends ActionBarActivity {
         }
 
         private void DisconnectOp() {
+            mjpeg_view_.stopPlayback();
+            mjpeg_input_stream_ = null;
             udp_connection_.Disconnect();
             udp_connection_.connected_ = false;
-
-            mjpeg_view_.startPlayback();
         }
 
         @Override

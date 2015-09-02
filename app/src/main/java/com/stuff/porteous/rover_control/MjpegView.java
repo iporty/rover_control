@@ -72,29 +72,40 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
             mSurfaceHolder = surfaceHolder;
         }
 
-        private Rect destRect(int bmw, int bmh) {
-            int tempx;
-            int tempy;
-            if (displayMode == MjpegView.SIZE_STANDARD) {
-                tempx = (dispWidth / 2) - (bmw / 2);
-                tempy = (dispHeight / 2) - (bmh / 2);
-                return new Rect(tempx, tempy, bmw + tempx, bmh + tempy);
-            }
-            if (displayMode == MjpegView.SIZE_BEST_FIT) {
-                float bmasp = (float) bmw / (float) bmh;
-                bmw = dispWidth;
-                bmh = (int) (dispWidth / bmasp);
-                if (bmh > dispHeight) {
-                    bmh = dispHeight;
-                    bmw = (int) (dispHeight * bmasp);
+        private Rect destRect(int bmw, int bmh, int cw, int ch) {
+            if (false) {
+                int tempx;
+
+                int tempy;
+                if (displayMode == MjpegView.SIZE_STANDARD) {
+                    tempx = (dispWidth / 2) - (bmw / 2);
+                    tempy = (dispHeight / 2) - (bmh / 2);
+                    return new Rect(tempx, tempy, bmw + tempx, bmh + tempy);
                 }
-                tempx = (dispWidth / 2) - (bmw / 2);
-                tempy = (dispHeight / 2) - (bmh / 2);
-                return new Rect(tempx, tempy, bmw + tempx, bmh + tempy);
+                if (displayMode == MjpegView.SIZE_BEST_FIT) {
+                    float bmasp = (float) bmw / (float) bmh;
+                    bmw = dispWidth;
+                    bmh = (int) (dispWidth / bmasp);
+                    if (bmh > dispHeight) {
+                        bmh = dispHeight;
+                        bmw = (int) (dispHeight * bmasp);
+                    }
+                    tempx = (dispWidth / 2) - (bmw / 2);
+                    tempy = (dispHeight / 2) - (bmh / 2);
+                    return new Rect(tempx, tempy, bmw + tempx, bmh + tempy);
+                }
+                if (displayMode == MjpegView.SIZE_FULLSCREEN)
+                    return new Rect(0, 0, dispWidth, dispHeight);
+                return null;
             }
-            if (displayMode == MjpegView.SIZE_FULLSCREEN)
-                return new Rect(0, 0, dispWidth, dispHeight);
-            return null;
+            while (bmw > cw || bmh > ch) {
+                bmw = bmw / 2;
+                bmh = bmh / 2;
+            }
+            int woffset = (cw - bmw) / 2;
+            int hoffset = (ch - bmh) / 2;
+            return new Rect(woffset, hoffset, woffset+bmw, hoffset+bmh);
+
         }
 
         public void setSurfaceSize(int width, int height) {
@@ -128,6 +139,7 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
             int width;
             int height;
             Rect destRect;
+            Rect srcRect;
             Canvas c = null;
             Paint p = new Paint();
             String fps = "";
@@ -138,10 +150,14 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
                         synchronized (mSurfaceHolder) {
                             try {
                                 bm = mIn.readMjpegFrame();
-                                destRect = destRect(bm.getWidth(),
+                                srcRect = new Rect(0,0,bm.getWidth(),
                                         bm.getHeight());
+
+                                destRect = destRect(bm.getWidth(), bm.getHeight(), c.getWidth(), c.getHeight());
                                 c.drawColor(Color.BLACK);
-                                c.drawBitmap(bm, null, destRect, p);
+                                //c.drawBitmap(bm, srcRect, destRect, p);
+                                c.drawBitmap(bm, srcRect, destRect, p);
+                                // c.drawBitmap(bm, new Rect(0, 0, 100, 100), destRect, p);
                                 if (showFps) {
                                     p.setXfermode(mode);
                                     if (ovl != null) {
@@ -216,7 +232,8 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
                 R.styleable.MjpegView_exampleDimension,
                 mExampleDimension);
 
-        /*if (a.hasValue(R.styleable.MjpegView_exampleDrawable)) {
+        /*
+        if (a.hasValue(R.styleable.MjpegView_exampleDrawable)) {
             mExampleDrawable = a.getDrawable(
                     R.styleable.MjpegView_exampleDrawable);
             mExampleDrawable.setCallback(this);
@@ -269,11 +286,12 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
                     paddingLeft + contentWidth, paddingTop + contentHeight);
             mExampleDrawable.draw(canvas);
         }
-        */
+*/
     }
 
     public void startPlayback() {
         if (mIn != null) {
+            showFps = true;
             mRun = true;
             thread.start();
         }
