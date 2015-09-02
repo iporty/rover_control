@@ -196,6 +196,7 @@ public class MjpegView extends SurfaceView implements SurfaceHolder.Callback {
 
         this.context = context;
         SurfaceHolder holder = getHolder();
+        holder.setFixedSize(640, 480);
         holder.addCallback(this);
         thread = new MjpegViewThread(holder, context);
         setFocusable(true);

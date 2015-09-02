@@ -14,7 +14,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -38,10 +41,12 @@ public class MainActivity extends ActionBarActivity {
     private SeekBar throttle_bar_;
     private SeekBar steering_bar_;
     private TextView settings_text_;
+    private TextView touch_debug_text_;
     private int count_;
     private MessageHandler msg_handler_;
     private MyTaskThread task_thread_;
-    private Button connect_button_;
+    // private Button connect_button_;
+    // private Button disconnect_button_;
     private SharedPreferences settings_;
     private UDPConnection udp_connection_;
     private MjpegView mjpeg_view_;
@@ -51,7 +56,8 @@ public class MainActivity extends ActionBarActivity {
     static final private int CONNECT = 0;
     static final private int SEND_SETTING = 1;
     static final private int DISCONNECT = 2;
-    private Button disconnect_button_;
+
+    private View main_view_;
 
     class UDPConnection {
         public InetAddress inet_address_;
@@ -103,13 +109,44 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    class TouchListener implements View.OnTouchListener {
+        public boolean onTouch(View v, MotionEvent e) {
+            int count = e.getPointerCount();
+            final StringBuilder string_builder = new StringBuilder();
+
+            for (int i = 0; i < count; ++i) {
+                float width = main_view_.getWidth();
+                float height = main_view_.getHeight();
+                float X = e.getX();
+                float Y = e.getY();
+                string_builder.append("id:" + e.getPointerId(i));
+                string_builder.append("," + X/width + ":" + Y/height);
+
+            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    touch_debug_text_.setText(string_builder.toString());
+                }
+            });
+            return true;
+        }
+    }
 
     private void initializeUIVariables() {
+        main_view_ = (View) findViewById(R.id.mainView);
+        main_view_.setOnTouchListener(new TouchListener());
+        main_view_.getX();
+
         throttle_bar_ = (SeekBar) findViewById(R.id.throttle);
         steering_bar_ = (SeekBar) findViewById(R.id.steering);
         settings_text_ = (TextView) findViewById(R.id.settingsView);
+        touch_debug_text_ = (TextView) findViewById(R.id.touchDebug);
         mjpeg_view_ = (MjpegView) findViewById(R.id.mjpeg_view);
 
+        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);
+
+        /*
         connect_button_ = (Button) findViewById(R.id.connect);
         connect_button_.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -125,6 +162,7 @@ public class MainActivity extends ActionBarActivity {
                 msg_handler_.sendMessage(msg);
             }
         });
+        */
     }
 
     class MessageHandler extends Handler {
@@ -328,10 +366,23 @@ public class MainActivity extends ActionBarActivity {
 
         Log.e("MainActivity:options", item.toString());
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            Intent myIntent = new Intent(this, SettingsActivity.class);
-            startActivityForResult(myIntent, 0);
-            return true;
+        switch (id) {
+            case R.id.action_settings:
+                Intent myIntent = new Intent(this, SettingsActivity.class);
+                startActivityForResult(myIntent, 0);
+                return true;
+            case R.id.connect: {
+                Message msg = Message.obtain(msg_handler_, CONNECT, 0, 0);
+                msg_handler_.sendMessage(msg);
+                return true;
+            }
+            case R.id.disconnect: {
+                Message msg = Message.obtain(msg_handler_, DISCONNECT, 0, 0);
+                msg_handler_.sendMessage(msg);
+                return true;
+            }
+            default:
+                break;
         }
 
         return super.onOptionsItemSelected(item);
